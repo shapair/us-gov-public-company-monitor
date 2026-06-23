@@ -1,0 +1,13 @@
+cik,name,aliases,country,entity_type,is_active
+0001374170,Norges Bank,"Norges Bank Investment Management|Norway Government Pension Fund Global|NBIM",Norway,swf,true
+0000936828,GIC Private Limited,"GIC|Government of Singapore Investment Corporation|GIC Pte Ltd",Singapore,swf,true
+0001021944,Temasek Holdings (Private) Ltd,"Temasek Holdings|Temasek",Singapore,swf,true
+0001767640,Public Investment Fund,"PIF|Saudi Arabian Public Investment Fund",Saudi Arabia,swf,true
+0001283718,Canada Pension Plan Investment Board,"CPPIB|CPP Investments",Canada,public_pension,true
+0000937567,Ontario Teachers' Pension Plan Board,"Ontario Teachers|OTPP",Canada,public_pension,true
+0001704268,Mubadala Investment Co PJSC,Mubadala,United Arab Emirates,swf,true
+0001634776,Abu Dhabi Investment Council,ADIC,United Arab Emirates,swf,true
+0001362558,Abu Dhabi Investment Authority,ADIA,United Arab Emirates,swf,true
+0000933491,Kuwait Investment Authority on Behalf of the GOVT of Kuwait,"KIA|Kuwait Investment Office",Kuwait,swf,true
+0001441449,Qatar Investment Authority,QIA,Qatar,swf,true
+0001468702,China Investment Corporation,"CIC|Central Huijin",China,swf,true

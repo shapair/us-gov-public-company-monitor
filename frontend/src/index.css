@@ -1,0 +1,79 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-apple-parchment text-apple-ink font-text;
+    font-size: 17px;
+    line-height: 1.47;
+    letter-spacing: -0.374px;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight;
+  }
+
+  a {
+    @apply text-apple-primary;
+  }
+
+  a:hover {
+    @apply underline;
+  }
+}
+
+@layer components {
+  .apple-card {
+    @apply bg-apple-canvas border border-apple-hairline rounded-apple-lg;
+  }
+
+  .apple-btn-primary {
+    @apply inline-flex items-center justify-center bg-apple-primary text-white rounded-apple-pill px-[22px] py-[11px] text-apple-body transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-apple-primary-focus;
+  }
+
+  .apple-btn-secondary {
+    @apply inline-flex items-center justify-center bg-transparent text-apple-primary border border-apple-primary rounded-apple-pill px-[22px] py-[11px] text-apple-body transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-apple-primary-focus;
+  }
+
+  .apple-btn-utility {
+    @apply inline-flex items-center justify-center bg-apple-ink text-white rounded-apple-sm px-[15px] py-2 text-apple-caption transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-apple-primary-focus;
+  }
+
+  .apple-btn-pearl {
+    @apply inline-flex items-center justify-center bg-apple-pearl text-apple-ink-muted-80 border border-apple-divider-soft rounded-apple-md px-[14px] py-2 text-apple-caption transition-transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-apple-primary-focus;
+  }
+
+  .apple-pill {
+    @apply inline-flex items-center rounded-apple-pill px-4 py-2 text-apple-caption border border-apple-hairline bg-apple-canvas;
+  }
+
+  .apple-pill-active {
+    @apply bg-apple-primary text-white border-apple-primary;
+  }
+
+  .apple-table-header {
+    @apply px-4 py-3 text-left text-apple-caption-strong text-apple-ink-muted-80 bg-apple-pearl;
+  }
+
+  .apple-table-cell {
+    @apply px-4 py-3 text-apple-body text-apple-ink align-top whitespace-nowrap;
+  }
+
+  .apple-section-title {
+    @apply text-apple-display-md font-display;
+  }
+
+  .apple-tagline {
+    @apply text-apple-tagline font-display;
+  }
+
+  .apple-frosted-bar {
+    @apply sticky top-0 z-30 bg-apple-parchment/80 backdrop-blur-xl border-b border-apple-hairline;
+  }
+}
