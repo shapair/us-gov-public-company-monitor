@@ -90,7 +90,7 @@ export default function PipelineMonitor() {
   const overallStyle = STATUS_STYLES[data.overall_status] || STATUS_STYLES.unknown
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
@@ -99,7 +99,7 @@ export default function PipelineMonitor() {
             Generated at {new Date(data.generated_at).toLocaleString()}
           </p>
         </div>
-        <div className="apple-card px-5 py-3 flex items-center gap-4">
+        <div className="apple-card-compact flex items-center gap-4">
           <div>
             <div className="text-apple-caption text-apple-ink-muted-48">Overall Status</div>
             <div className={`text-[28px] leading-none font-display ${overallStyle.badge.split(' ')[1]}`}>
@@ -109,7 +109,7 @@ export default function PipelineMonitor() {
           <div className="h-10 w-px bg-apple-hairline" />
           <div>
             <div className="text-apple-caption text-apple-ink-muted-48">Pipelines</div>
-            <div className="text-[24px] leading-none font-display text-apple-ink">
+            <div className="apple-stat-value">
               {formatNumber(data.pipelines?.length)}
             </div>
           </div>
@@ -119,34 +119,34 @@ export default function PipelineMonitor() {
       {/* Pipeline cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {data.pipelines.map((p) => (
-          <div key={p.id} className="apple-card p-5 flex flex-col gap-4">
+          <div key={p.id} className="apple-card-compact flex flex-col gap-3">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h3 className="text-apple-body-strong text-apple-ink">{p.name}</h3>
-                <p className="text-apple-caption text-apple-ink-muted-48 font-mono mt-0.5">{p.id}</p>
+                <p className="text-apple-caption text-apple-ink-muted-48 font-mono">{p.id}</p>
               </div>
               <StatusBadge status={p.status} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-apple-caption">
-              <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+            <div className="grid grid-cols-2 gap-2 text-apple-caption">
+              <div className="p-2.5 rounded-apple-lg bg-apple-pearl/50">
                 <div className="text-apple-ink-muted-48">Frequency</div>
                 <div className="font-medium text-apple-ink mt-0.5">
                   {FREQUENCY_LABELS[p.frequency] || p.frequency}
                 </div>
               </div>
-              <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+              <div className="p-2.5 rounded-apple-lg bg-apple-pearl/50">
                 <div className="text-apple-ink-muted-48">Events</div>
                 <div className="font-medium text-apple-ink mt-0.5">{formatNumber(p.event_count)}</div>
               </div>
-              <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+              <div className="p-2.5 rounded-apple-lg bg-apple-pearl/50">
                 <div className="text-apple-ink-muted-48">Next Run</div>
                 <div className="font-medium text-apple-ink mt-0.5">{formatDateShort(p.next_run_at)}</div>
                 <div className="text-apple-micro text-apple-ink-muted-48 mt-0.5">
                   {p.next_run_at ? new Date(p.next_run_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                 </div>
               </div>
-              <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+              <div className="p-2.5 rounded-apple-lg bg-apple-pearl/50">
                 <div className="text-apple-ink-muted-48">Last Ingested</div>
                 <div className="font-medium text-apple-ink mt-0.5">{formatDateShort(p.last_ingested_at)}</div>
                 <div className="text-apple-micro text-apple-ink-muted-48 mt-0.5">
@@ -155,7 +155,7 @@ export default function PipelineMonitor() {
               </div>
             </div>
 
-            <div className="pt-3 border-t border-apple-hairline">
+            <div className="pt-2 border-t border-apple-hairline">
               <div className="flex justify-between text-apple-caption mb-1">
                 <span className="text-apple-ink-muted-48">Latest data date</span>
                 <span className="text-apple-ink">{formatDateShort(p.latest_data_at)}</span>

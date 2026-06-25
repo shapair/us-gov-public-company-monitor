@@ -66,7 +66,23 @@
   }
 
   .apple-section-title {
-    @apply text-apple-display-md font-display;
+    @apply text-[24px] leading-tight tracking-[-0.2px] font-display text-apple-ink;
+  }
+
+  .apple-section-subtitle {
+    @apply text-apple-caption text-apple-ink-muted-48;
+  }
+
+  .apple-stat-label {
+    @apply text-apple-caption text-apple-ink-muted-48;
+  }
+
+  .apple-stat-value {
+    @apply text-[24px] leading-none tracking-[-0.2px] font-display text-apple-ink;
+  }
+
+  .apple-card-compact {
+    @apply apple-card p-4;
   }
 
   .apple-tagline {

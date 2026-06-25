@@ -24,20 +24,17 @@ export default function EventTypeBreakdown({ by_type }) {
     .sort((a, b) => b.count - a.count)
 
   return (
-    <div className="apple-card p-6 md:p-8">
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+    <div className="apple-card p-5">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
         <div>
           <h2 className="apple-section-title">Event Breakdown</h2>
-          <p className="text-apple-caption text-apple-ink-muted-48 mt-1">
-            {formatNumber(total)} tracked events across {rows.length} categories
+          <p className="apple-section-subtitle mt-0.5">
+            {formatNumber(total)} events across {rows.length} categories
           </p>
-        </div>
-        <div className="text-apple-caption text-apple-ink-muted-48">
-          Last updated from live data feeds
         </div>
       </div>
 
-      <div className="h-3 w-full rounded-apple-pill overflow-hidden flex bg-apple-pearl">
+      <div className="h-2.5 w-full rounded-apple-pill overflow-hidden flex bg-apple-pearl">
         {rows.map((row) => (
           <div
             key={row.type}
@@ -51,23 +48,23 @@ export default function EventTypeBreakdown({ by_type }) {
         ))}
       </div>
 
-      <div className="mt-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
         {rows.map((row) => (
           <div
             key={row.type}
-            className="flex items-start gap-3 p-4 rounded-apple-lg bg-apple-pearl/50"
+            className="flex items-start gap-2.5 p-3 rounded-apple-lg bg-apple-pearl/50"
           >
             <span
-              className="mt-1.5 w-2.5 h-2.5 rounded-full shrink-0"
+              className="mt-1.5 w-2 h-2 rounded-full shrink-0"
               style={{ backgroundColor: row.color }}
             />
-            <div>
-              <div className="text-apple-caption text-apple-ink-muted-48">{row.label}</div>
-              <div className="text-[28px] leading-tight font-display text-apple-ink mt-1">
+            <div className="min-w-0">
+              <div className="text-apple-caption text-apple-ink-muted-48 truncate">{row.label}</div>
+              <div className="text-[22px] leading-tight font-display text-apple-ink mt-0.5">
                 {formatNumber(row.count)}
               </div>
               <div className="text-apple-caption text-apple-ink-muted-48 mt-0.5">
-                {row.percent < 0.1 ? '<0.1%' : `${row.percent.toFixed(1)}%`} of total
+                {row.percent < 0.1 ? '<0.1%' : `${row.percent.toFixed(1)}%`}
               </div>
             </div>
           </div>

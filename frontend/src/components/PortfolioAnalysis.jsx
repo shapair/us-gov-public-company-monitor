@@ -82,10 +82,10 @@ function SummaryCard({ label, value, subtext, tone = 'ink' }) {
     amber: 'text-amber-600',
   }[tone]
   return (
-    <div className="apple-card p-5">
-      <div className="text-apple-caption text-apple-ink-muted-48">{label}</div>
-      <div className={`text-[26px] leading-tight font-display ${toneClass} mt-1`}>{value}</div>
-      {subtext && <div className="text-apple-caption text-apple-ink-muted-48 mt-1">{subtext}</div>}
+    <div className="apple-card-compact">
+      <div className="apple-stat-label">{label}</div>
+      <div className={`apple-stat-value ${toneClass} mt-1`}>{value}</div>
+      {subtext && <div className="text-apple-caption text-apple-ink-muted-48 mt-0.5">{subtext}</div>}
     </div>
   )
 }
@@ -299,7 +299,7 @@ function buildSummary(snapshot, changes) {
 function SummaryPanel({ snapshot, changes }) {
   const bullets = useMemo(() => buildSummary(snapshot, changes), [snapshot, changes])
   return (
-    <div className="apple-card p-6 md:p-8 border-l-4 border-l-apple-primary">
+    <div className="apple-card p-5 border-l-4 border-l-apple-primary">
       <h3 className="apple-section-title mb-4">Executive Summary</h3>
       <ul className="space-y-3 text-apple-body text-apple-ink">
         {bullets.map((text, idx) => (
@@ -342,7 +342,7 @@ export default function PortfolioAnalysis() {
   const newTone = chg.new_exposure >= 0 ? 'green' : 'red'
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
         <div>
@@ -391,14 +391,14 @@ export default function PortfolioAnalysis() {
         </div>
 
         <div className="apple-card p-6 lg:col-span-2">
-          <h3 className="apple-section-title mb-5">Top 10 Tickers by Exposure</h3>
+          <h3 className="apple-section-title mb-3">Top 10 Tickers by Exposure</h3>
           <TopTickersChart data={snap.top_tickers} />
         </div>
       </div>
 
       {/* Activity timeline */}
-      <div className="apple-card p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
+      <div className="apple-card p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
           <h3 className="apple-section-title">30-Day Activity</h3>
           <div className="flex rounded-apple-pill p-1 bg-apple-pearl border border-apple-divider-soft">
             <button
@@ -453,8 +453,8 @@ export default function PortfolioAnalysis() {
         </div>
 
         {/* Latest events */}
-        <div className="apple-card p-6 overflow-hidden">
-          <h3 className="apple-section-title mb-5">Latest Events in Period</h3>
+        <div className="apple-card p-5 overflow-hidden">
+          <h3 className="apple-section-title mb-3">Latest Events in Period</h3>
           <div className="overflow-x-auto -mx-6 px-6">
             <table className="w-full min-w-[700px]">
               <thead>

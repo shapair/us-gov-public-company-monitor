@@ -392,7 +392,7 @@ function App() {
         </div>
       </div>
 
-      <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 py-8 md:py-12">
+      <main className="flex-1 max-w-[1440px] mx-auto w-full px-6 py-6 md:py-8">
         {loading && activeTab !== 'monitor' && contracts.length === 0 && trades.length === 0 && stakes.length === 0 && holdings.length === 0 ? (
           <div className="text-center py-20 text-apple-ink-muted-48 text-apple-body">Loading…</div>
         ) : (
@@ -401,7 +401,7 @@ function App() {
               <>
                 <SummaryCards summary={summary} />
 
-                <section className="mt-8 md:mt-10">
+                <section className="mt-5 md:mt-6">
                   <EventTypeBreakdown by_type={summary.by_type} />
                 </section>
               </>
@@ -427,8 +427,8 @@ function App() {
 
             {activeTab !== 'monitor' && activeTab !== 'pipelines' && activeTab !== 'portfolio' && (
               <>
-              <section className="mt-10 md:mt-14">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <section className="mt-6 md:mt-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                 <h2 className="apple-section-title">Explore</h2>
                 <div className="flex flex-wrap items-center gap-3">
                   {activeTab === 'contracts' && (
@@ -502,8 +502,8 @@ function App() {
 
             {activeTab === 'contracts' && (
               <>
-                <section className="mt-8">
-                  <h2 className="apple-section-title mb-5">Top Tickers by Contract Value</h2>
+                <section className="mt-6">
+                  <h2 className="apple-section-title mb-3">Top Tickers by Contract Value</h2>
                   <TickerBarChart
                     year={chartYear === 'all' ? null : chartYear}
                     agencies={selectedAgencies}
@@ -511,8 +511,8 @@ function App() {
                   />
                 </section>
 
-                <section className="mt-12">
-                  <h2 className="apple-section-title mb-5">Government Contracts / Grants</h2>
+                <section className="mt-8">
+                  <h2 className="apple-section-title mb-3">Government Contracts / Grants</h2>
                   <ContractsTable
                     contracts={contracts}
                     offset={contractsOffset}
@@ -526,8 +526,8 @@ function App() {
 
             {activeTab === 'trades' && (
               <>
-                <section className="mt-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
+                <section className="mt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     <h2 className="apple-section-title">
                       {tradeChartMode === 'value'
                         ? 'Top Tickers by Official Trade Value'
@@ -567,8 +567,8 @@ function App() {
                   )}
                 </section>
 
-                <section className="mt-12">
-                  <h2 className="apple-section-title mb-5">Official Stock Trades</h2>
+                <section className="mt-8">
+                  <h2 className="apple-section-title mb-3">Official Stock Trades</h2>
                   <OfficialTradesTable
                     trades={trades}
                     offset={tradesOffset}
@@ -582,13 +582,13 @@ function App() {
 
             {activeTab === 'stakes' && (
               <>
-                <section className="mt-8">
-                  <h2 className="apple-section-title mb-5">Top Tickers by Federal Stake Amount</h2>
+                <section className="mt-6">
+                  <h2 className="apple-section-title mb-3">Top Tickers by Federal Stake Amount</h2>
                   <FederalStakesChart agencies={selectedStakeAgencies} limit={20} />
                 </section>
 
-                <section className="mt-12">
-                  <h2 className="apple-section-title mb-5">Federal Direct Equity Stakes</h2>
+                <section className="mt-8">
+                  <h2 className="apple-section-title mb-3">Federal Direct Equity Stakes</h2>
                   <FederalStakesTable
                     stakes={stakes}
                     offset={stakesOffset}
@@ -602,8 +602,8 @@ function App() {
 
             {activeTab === 'foreign-holdings' && (
               <>
-                <section className="mt-8">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
+                <section className="mt-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
                     <h2 className="apple-section-title">
                       {holdingChartMode === 'ticker'
                         ? 'Top Tickers by Foreign Holding Value'
@@ -646,8 +646,8 @@ function App() {
                   )}
                 </section>
 
-                <section className="mt-12">
-                  <h2 className="apple-section-title mb-5">Foreign Government Holdings</h2>
+                <section className="mt-8">
+                  <h2 className="apple-section-title mb-3">Foreign Government Holdings</h2>
                   <ForeignHoldingsTable
                     holdings={holdings}
                     offset={holdingsOffset}

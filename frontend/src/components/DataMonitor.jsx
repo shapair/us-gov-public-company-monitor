@@ -57,8 +57,8 @@ function freshnessBadge(days) {
 function QualityBar({ label, value, color = '#0066cc' }) {
   const pct = Math.min(100, Math.max(0, value || 0))
   return (
-    <div className="mb-4">
-      <div className="flex justify-between text-apple-caption mb-1.5">
+    <div className="mb-3">
+      <div className="flex justify-between text-apple-caption mb-1">
         <span className="text-apple-ink">{label}</span>
         <span className="font-medium text-apple-ink">{pct.toFixed(1)}%</span>
       </div>
@@ -75,29 +75,22 @@ function QualityBar({ label, value, color = '#0066cc' }) {
 function MiniPie({ data, colors }) {
   if (!data || data.length === 0) return null
   return (
-    <div className="h-48 w-full">
+    <div className="h-40 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
             data={data}
             dataKey="count"
             nameKey="name"
-            innerRadius={45}
-            outerRadius={70}
+            innerRadius={38}
+            outerRadius={58}
             paddingAngle={2}
           >
             {data.map((_, i) => (
               <Cell key={i} fill={colors[i % colors.length]} />
             ))}
           </Pie>
-          <ReTooltip
-            formatter={(value) => formatNumber(value)}
-            contentStyle={{
-              borderRadius: 12,
-              border: '1px solid #e5e5e5',
-              background: '#fff',
-            }}
-          />
+          <ReTooltip formatter={(value) => formatNumber(value)} />
         </PieChart>
       </ResponsiveContainer>
     </div>
@@ -132,7 +125,7 @@ export default function DataMonitor() {
 
   if (loading) {
     return (
-      <div className="text-center py-20 text-apple-ink-muted-48 text-apple-body">
+      <div className="text-center py-16 text-apple-ink-muted-48 text-apple-body">
         Loading monitor data…
       </div>
     )
@@ -140,7 +133,7 @@ export default function DataMonitor() {
 
   if (error || !data) {
     return (
-      <div className="text-center py-20 text-red-600 text-apple-body">
+      <div className="text-center py-16 text-red-600 text-apple-body">
         Failed to load monitor data: {error || 'unknown error'}
       </div>
     )
@@ -170,20 +163,20 @@ export default function DataMonitor() {
   }))
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="apple-section-title">Data Freshness & Quality</h2>
-          <p className="text-apple-caption text-apple-ink-muted-48 mt-1">
+          <p className="apple-section-subtitle mt-0.5">
             Generated at {new Date(data.generated_at).toLocaleString()}
           </p>
         </div>
-        <div className="apple-card px-5 py-3 flex items-center gap-4">
+        <div className="apple-card-compact flex items-center gap-4">
           <div>
-            <div className="text-apple-caption text-apple-ink-muted-48">Health Score</div>
+            <div className="apple-stat-label">Health Score</div>
             <div
-              className={`text-[32px] leading-none font-display ${
+              className={`text-[28px] leading-none font-display ${
                 quality.health_score >= 90
                   ? 'text-green-600'
                   : quality.health_score >= 70
@@ -196,10 +189,8 @@ export default function DataMonitor() {
           </div>
           <div className="h-10 w-px bg-apple-hairline" />
           <div>
-            <div className="text-apple-caption text-apple-ink-muted-48">Total Events</div>
-            <div className="text-[24px] leading-none font-display text-apple-ink">
-              {formatNumber(quality.total_events)}
-            </div>
+            <div className="apple-stat-label">Total Events</div>
+            <div className="apple-stat-value">{formatNumber(quality.total_events)}</div>
           </div>
         </div>
       </div>
@@ -209,13 +200,10 @@ export default function DataMonitor() {
         {freshness.map((item) => {
           const meta = TYPE_META[item.event_type] || { label: item.event_type, color: '#8e8e93' }
           return (
-            <div key={item.event_type} className="apple-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className="w-3 h-3 rounded-full"
-                    style={{ backgroundColor: meta.color }}
-                  />
+            <div key={item.event_type} className="apple-card-compact">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
                   <span className="text-apple-caption text-apple-ink-muted-48">{meta.label}</span>
                 </div>
                 <span
@@ -225,27 +213,23 @@ export default function DataMonitor() {
                 >
                   {item.days_since_occurred === null
                     ? 'N/A'
-                    : `${item.days_since_occurred}d since data`}
+                    : `${item.days_since_occurred}d`}
                 </span>
               </div>
-              <div className="text-[28px] leading-tight font-display text-apple-ink">
-                {formatNumber(item.count)}
+              <div className="apple-stat-value">{formatNumber(item.count)}</div>
+              <div className="text-apple-caption text-apple-ink-muted-48 mt-0.5">
+                {formatCurrency(item.total_amount)} total
               </div>
-              <div className="text-apple-caption text-apple-ink-muted-48 mt-1">
-                {formatCurrency(item.total_amount)} total value
-              </div>
-              <div className="mt-4 space-y-1 text-apple-caption">
+              <div className="mt-3 space-y-0.5 text-apple-caption">
                 <div className="flex justify-between">
-                  <span className="text-apple-ink-muted-48">Latest event</span>
+                  <span className="text-apple-ink-muted-48">Latest</span>
                   <span className={freshnessClass(item.days_since_occurred)}>
                     {formatDate(item.latest_occurred_at)}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-apple-ink-muted-48">Last ingested</span>
-                  <span className="text-apple-ink">
-                    {formatDate(item.latest_created_at)}
-                  </span>
+                  <span className="text-apple-ink-muted-48">Ingested</span>
+                  <span className="text-apple-ink">{formatDate(item.latest_created_at)}</span>
                 </div>
               </div>
             </div>
@@ -254,84 +238,97 @@ export default function DataMonitor() {
       </div>
 
       {/* Quality overview */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="apple-card p-6 md:p-8 lg:col-span-2">
-          <h3 className="apple-section-title mb-6">Data Quality Overview</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-            <QualityBar
-              label="Missing Ticker"
-              value={quality.missing_ticker_pct}
-              color="#ff3b30"
-            />
-            <QualityBar
-              label="Missing Amount"
-              value={quality.missing_amount_pct}
-              color="#ff9500"
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="apple-card p-5 lg:col-span-2">
+          <h3 className="apple-section-title mb-4">Data Quality Overview</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+            <QualityBar label="Missing Ticker" value={quality.missing_ticker_pct} color="#ff3b30" />
+            <QualityBar label="Missing Amount" value={quality.missing_amount_pct} color="#ff9500" />
           </div>
-          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-apple-lg bg-apple-pearl/50">
-              <div className="text-apple-caption text-apple-ink-muted-48">Missing Ticker</div>
-              <div className="text-[22px] font-display text-apple-ink mt-1">
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+              <div className="apple-stat-label">Missing Ticker</div>
+              <div className="text-[20px] leading-tight font-display text-apple-ink mt-1">
                 {formatNumber(quality.missing_ticker)}
               </div>
               <div className="text-apple-caption text-apple-ink-muted-48">
                 {quality.missing_ticker_pct?.toFixed(1)}%
               </div>
             </div>
-            <div className="p-4 rounded-apple-lg bg-apple-pearl/50">
-              <div className="text-apple-caption text-apple-ink-muted-48">Missing Amount</div>
-              <div className="text-[22px] font-display text-apple-ink mt-1">
+            <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+              <div className="apple-stat-label">Missing Amount</div>
+              <div className="text-[20px] leading-tight font-display text-apple-ink mt-1">
                 {formatNumber(quality.missing_amount)}
               </div>
               <div className="text-apple-caption text-apple-ink-muted-48">
                 {quality.missing_amount_pct?.toFixed(1)}%
               </div>
             </div>
-            <div className="p-4 rounded-apple-lg bg-apple-pearl/50">
-              <div className="text-apple-caption text-apple-ink-muted-48">Duplicate IDs</div>
-              <div className="text-[22px] font-display text-apple-ink mt-1">
+            <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+              <div className="apple-stat-label">Duplicate IDs</div>
+              <div className="text-[20px] leading-tight font-display text-apple-ink mt-1">
                 {formatNumber(quality.duplicate_source_ids)}
               </div>
               <div className="text-apple-caption text-apple-ink-muted-48">source_id groups</div>
             </div>
-            <div className="p-4 rounded-apple-lg bg-apple-pearl/50">
-              <div className="text-apple-caption text-apple-ink-muted-48">Foreign Pending</div>
-              <div className="text-[22px] font-display text-apple-ink mt-1">
-                {formatNumber(
-                  reviewData.find((r) => r.name === 'pending')?.count || 0
-                )}
+            <div className="p-3 rounded-apple-lg bg-apple-pearl/50">
+              <div className="apple-stat-label">Foreign Pending</div>
+              <div className="text-[20px] leading-tight font-display text-apple-ink mt-1">
+                {formatNumber(reviewData.find((r) => r.name === 'pending')?.count || 0)}
               </div>
               <div className="text-apple-caption text-apple-ink-muted-48">review queue</div>
             </div>
           </div>
         </div>
 
-        <div className="apple-card p-6 md:p-8">
-          <h3 className="apple-section-title mb-2">Foreign Holdings Review</h3>
-          <MiniPie data={reviewData} colors={reviewColors} />
-          <div className="mt-2 space-y-1.5">
-            {reviewData.map((r, i) => (
-              <div key={r.name} className="flex items-center justify-between text-apple-caption">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full"
-                    style={{ backgroundColor: reviewColors[i % reviewColors.length] }}
-                  />
-                  <span className="capitalize text-apple-ink">{r.name}</span>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="apple-card p-5">
+            <h3 className="apple-section-title mb-1">Foreign Holdings Review</h3>
+            <MiniPie data={reviewData} colors={reviewColors} />
+            <div className="space-y-1">
+              {reviewData.map((r, i) => (
+                <div key={r.name} className="flex items-center justify-between text-apple-caption">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-2 h-2 rounded-full"
+                      style={{ backgroundColor: reviewColors[i % reviewColors.length] }}
+                    />
+                    <span className="capitalize text-apple-ink">{r.name}</span>
+                  </div>
+                  <span className="text-apple-ink-muted-48">{formatNumber(r.count)}</span>
                 </div>
-                <span className="text-apple-ink-muted-48">{formatNumber(r.count)}</span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+
+          {confidenceData.length > 0 && (
+            <div className="apple-card p-5">
+              <h3 className="apple-section-title mb-1">Confidence</h3>
+              <MiniPie data={confidenceData} colors={confidenceColors} />
+              <div className="space-y-1">
+                {confidenceData.map((c, i) => (
+                  <div key={c.name} className="flex items-center justify-between text-apple-caption">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: confidenceColors[i % confidenceColors.length] }}
+                      />
+                      <span className="capitalize text-apple-ink">{c.name}</span>
+                    </div>
+                    <span className="text-apple-ink-muted-48">{formatNumber(c.count)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Missing rates by type */}
       {missingByType.length > 0 && (
-        <div className="apple-card p-6 md:p-8">
-          <h3 className="apple-section-title mb-5">Missing Rates by Category</h3>
-          <div className="h-64 w-full">
+        <div className="apple-card p-5">
+          <h3 className="apple-section-title mb-4">Missing Rates by Category</h3>
+          <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={missingByType} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e5e5" />
@@ -349,61 +346,11 @@ export default function DataMonitor() {
                 />
                 <ReTooltip
                   formatter={(value) => `${Number(value).toFixed(1)}%`}
-                  contentStyle={{
-                    borderRadius: 12,
-                    border: '1px solid #e5e5e5',
-                    background: '#fff',
-                  }}
                 />
                 <Bar dataKey="ticker" name="Missing Ticker" fill="#ff3b30" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="amount" name="Missing Amount" fill="#ff9500" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          </div>
-        </div>
-      )}
-
-      {/* Confidence distribution */}
-      {confidenceData.length > 0 && (
-        <div className="apple-card p-6 md:p-8">
-          <h3 className="apple-section-title mb-5">Foreign Holdings Confidence Distribution</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            <div className="h-56 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={confidenceData}
-                    dataKey="count"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={2}
-                  >
-                    {confidenceData.map((_, i) => (
-                      <Cell key={i} fill={confidenceColors[i % confidenceColors.length]} />
-                    ))}
-                  </Pie>
-                  <ReTooltip formatter={(value) => formatNumber(value)} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="space-y-3">
-              {confidenceData.map((c, i) => (
-                <div
-                  key={c.name}
-                  className="flex items-center justify-between p-3 rounded-apple-lg bg-apple-pearl/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: confidenceColors[i % confidenceColors.length] }}
-                    />
-                    <span className="capitalize text-apple-ink text-apple-body">{c.name}</span>
-                  </div>
-                  <span className="font-display text-apple-ink">{formatNumber(c.count)}</span>
-                </div>
-              ))}
-            </div>
           </div>
         </div>
       )}

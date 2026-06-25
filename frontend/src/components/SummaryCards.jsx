@@ -18,16 +18,14 @@ export default function SummaryCards({ summary }) {
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       {cards.map((card) => (
         <div
           key={card.label}
-          className="apple-card p-6 flex flex-col justify-between min-h-[120px]"
+          className="apple-card-compact flex flex-col justify-between"
         >
-          <div className="text-apple-caption text-apple-ink-muted-48 mb-2">{card.label}</div>
-          <div className="text-[32px] leading-tight tracking-[-0.2px] font-display text-apple-ink">
-            {card.value}
-          </div>
+          <div className="apple-stat-label mb-1">{card.label}</div>
+          <div className="apple-stat-value">{card.value}</div>
         </div>
       ))}
     </div>
