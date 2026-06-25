@@ -3,6 +3,7 @@ import logging
 from datetime import date, timedelta
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import create_db_and_tables, engine
@@ -17,6 +18,8 @@ from app.parsers.usaspending import parse_award
 
 logger = logging.getLogger(__name__)
 scheduler = BackgroundScheduler()
+
+BATCH_SIZE = 500
 
 
 def sync_usaspending(
@@ -68,28 +71,79 @@ def sync_usaspending(
         }
         logger.info("Loaded %s existing USASpending source IDs", len(existing_ids))
 
+        buffer: list[dict] = []
+
         for raw in raw_awards:
             parsed = parse_award(raw)
             if not parsed:
                 continue
 
-            if parsed["source_id"] in existing_ids:
+            sid = parsed.get("source_id")
+            if not sid or sid in existing_ids:
                 continue
-            existing_ids.add(parsed["source_id"])
+            existing_ids.add(sid)
+            buffer.append(parsed)
 
-            detail_data = parsed.pop("detail")
-            event = Event(**parsed)
-            session.add(event)
-            session.flush()  # populate event.id
+            if len(buffer) >= BATCH_SIZE:
+                created += _persist_usaspending_batch(session, buffer, existing_ids)
 
-            detail = ContractDetail(event_id=event.id, **detail_data)
-            session.add(detail)
-            created += 1
-
-        session.commit()
+        if buffer:
+            created += _persist_usaspending_batch(session, buffer, existing_ids)
 
     logger.info("USASpending sync complete: %s new events", created)
     return created
+
+
+def _persist_usaspending_batch(
+    session: Session, buffer: list[dict], existing_ids: set[str]
+) -> int:
+    """Insert a batch of parsed USASpending records, skipping duplicates on conflict."""
+    if not buffer:
+        return 0
+
+    inserted = 0
+    try:
+        events = []
+        for data in buffer:
+            event_data = {k: v for k, v in data.items() if k != "detail"}
+            event = Event(**event_data)
+            events.append(event)
+            session.add(event)
+        session.flush()
+        for event, data in zip(events, buffer):
+            session.add(ContractDetail(event_id=event.id, **data["detail"]))
+        session.commit()
+        for event in events:
+            if event.source_id:
+                existing_ids.add(event.source_id)
+        inserted = len(buffer)
+    except IntegrityError:
+        session.rollback()
+        logger.warning("USASpending batch conflict; falling back to per-row inserts")
+        for data in buffer:
+            event_data = {k: v for k, v in data.items() if k != "detail"}
+            sid = event_data.get("source_id")
+            if sid in existing_ids:
+                continue
+            try:
+                event = Event(**event_data)
+                session.add(event)
+                session.flush()
+                session.add(ContractDetail(event_id=event.id, **data["detail"]))
+                session.commit()
+                existing_ids.add(sid)
+                inserted += 1
+            except IntegrityError:
+                session.rollback()
+                existing_ids.add(sid)
+                logger.warning("Duplicate USASpending contract skipped: %s", sid)
+            except Exception:
+                session.rollback()
+                logger.exception("Failed to insert USASpending event")
+    finally:
+        buffer.clear()
+
+    return inserted
 
 
 def start_scheduler():

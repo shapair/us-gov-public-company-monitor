@@ -2,6 +2,7 @@
 import logging
 from datetime import date, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import create_db_and_tables, engine
@@ -27,6 +28,61 @@ def _existing_trade_source_ids(session: Session) -> set[str]:
     return set(rows)
 
 
+def _persist_batch(
+    session: Session,
+    buffer: list[tuple[dict, dict]],
+    existing: set[str],
+    stats: dict,
+) -> None:
+    """Insert a buffered batch, falling back to per-row inserts on conflict."""
+    if not buffer:
+        return
+
+    try:
+        events = []
+        details = []
+        for event_data, detail_data in buffer:
+            event = Event(**event_data)
+            events.append(event)
+            session.add(event)
+        session.flush()
+        for event, (_, detail_data) in zip(events, buffer):
+            detail = OfficialTradeDetail(event_id=event.id, **detail_data)
+            details.append(detail)
+            session.add(detail)
+            if event.source_id:
+                existing.add(event.source_id)
+        session.commit()
+        stats["inserted"] += len(buffer)
+    except IntegrityError:
+        session.rollback()
+        logger.warning("Batch trade insert conflict; falling back to per-row inserts")
+        for event_data, detail_data in buffer:
+            sid = event_data.get("source_id")
+            if sid in existing:
+                stats["skipped"] += 1
+                continue
+            try:
+                event = Event(**event_data)
+                session.add(event)
+                session.flush()
+                session.add(OfficialTradeDetail(event_id=event.id, **detail_data))
+                session.commit()
+                existing.add(sid)
+                stats["inserted"] += 1
+            except IntegrityError:
+                session.rollback()
+                existing.add(sid)
+                stats["skipped"] += 1
+                logger.warning("Duplicate trade skipped: %s", sid)
+            except Exception:
+                session.rollback()
+                stats["errors"] += 1
+                logger.exception("Failed to insert trade event")
+    finally:
+        buffer.clear()
+
+
 def sync_congress_trades(
     start_date: date | None = None,
     end_date: date | None = None,
@@ -43,57 +99,36 @@ def sync_congress_trades(
         # Look back 14 days to tolerate upstream reporting lag and weekends.
         start_date = end_date - timedelta(days=14)
 
-    stats = {"fetched": 0, "inserted": 0}
+    stats = {"fetched": 0, "inserted": 0, "skipped": 0, "errors": 0}
 
     with Session(engine) as session:
         existing = _existing_trade_source_ids(session)
-        inserted = 0
-        fetched = 0
-        buffer: list[Event] = []
-        detail_buffer: list[OfficialTradeDetail] = []
+        buffer: list[tuple[dict, dict]] = []
 
         try:
             for raw in fetch_congress_trades(start_date=start_date, end_date=end_date):
-                fetched += 1
+                stats["fetched"] += 1
                 parsed = parse_trade(raw)
                 if not parsed:
                     continue
 
-                if parsed["source_id"] in existing:
+                sid = parsed.get("source_id")
+                if sid in existing:
+                    stats["skipped"] += 1
                     continue
 
                 detail_data = parsed.pop("detail")
-                event = Event(**parsed)
-                buffer.append(event)
-                detail_buffer.append(OfficialTradeDetail(**detail_data))
+                buffer.append((parsed, detail_data))
 
                 if len(buffer) >= BATCH_SIZE:
-                    session.add_all(buffer)
-                    session.flush()
-                    for evt, detail in zip(buffer, detail_buffer):
-                        detail.event_id = evt.id
-                        session.add(detail)
-                        existing.add(evt.source_id)
-                    inserted += len(buffer)
-                    session.commit()
-                    buffer.clear()
-                    detail_buffer.clear()
+                    _persist_batch(session, buffer, existing, stats)
 
             if buffer:
-                session.add_all(buffer)
-                session.flush()
-                for evt, detail in zip(buffer, detail_buffer):
-                    detail.event_id = evt.id
-                    session.add(detail)
-                    existing.add(evt.source_id)
-                inserted += len(buffer)
-                session.commit()
+                _persist_batch(session, buffer, existing, stats)
 
         except Exception:
             logger.exception("Failed to sync congressional trades")
             raise
 
-        stats = {"fetched": fetched, "inserted": inserted}
-        logger.info("Congressional trades sync complete: %s", stats)
-
+    logger.info("Congressional trades sync complete: %s", stats)
     return stats

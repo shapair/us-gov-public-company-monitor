@@ -2,6 +2,7 @@
 import logging
 from datetime import date, timedelta
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import create_db_and_tables, engine
@@ -10,6 +11,17 @@ from app.models import CompanyMapping, EquityStakeDetail, Event
 from app.parsers.equity_stakes import parse_equity_stake
 
 logger = logging.getLogger(__name__)
+
+
+def _existing_stake_source_ids(session: Session) -> set[str]:
+    """Load all existing equity-stake source IDs to prevent duplicates across any window."""
+    rows = session.exec(
+        select(Event.source_id).where(
+            Event.event_type == "stake",
+            Event.source_id.isnot(None),
+        )
+    ).all()
+    return set(rows)
 
 
 def _load_ticker_lookup(session: Session) -> tuple[set[str], dict[str, str]]:
@@ -46,17 +58,9 @@ def sync_equity_stakes(
     with Session(engine) as session:
         known_tickers, cik_to_ticker = _load_ticker_lookup(session)
 
-        # Pre-load existing source ids for the date window to avoid duplicates.
-        existing_ids = {
-            r
-            for (r,) in session.exec(
-                select(Event.source_id).where(
-                    Event.event_type == "stake",
-                    Event.occurred_at >= start_date,
-                    Event.occurred_at <= end_date,
-                )
-            ).all()
-        }
+        # Pre-load all existing source IDs for this event type to avoid duplicates
+        # when a backfill window overlaps historical data.
+        existing_ids = _existing_stake_source_ids(session)
 
         for raw in raw_items:
             parsed = parse_equity_stake(raw, known_tickers, cik_to_ticker)
@@ -64,6 +68,7 @@ def sync_equity_stakes(
                 stats["skipped"] += 1
                 continue
             if parsed["source_id"] in existing_ids:
+                stats["skipped"] += 1
                 continue
 
             try:
@@ -77,6 +82,11 @@ def sync_equity_stakes(
 
                 existing_ids.add(parsed["source_id"])
                 stats["inserted"] += 1
+            except IntegrityError:
+                session.rollback()
+                existing_ids.add(parsed["source_id"])
+                stats["skipped"] += 1
+                logger.warning("Duplicate equity stake skipped: %s", parsed.get("source_id"))
             except Exception as e:
                 logger.exception("Failed to insert equity stake event: %s", e)
                 session.rollback()

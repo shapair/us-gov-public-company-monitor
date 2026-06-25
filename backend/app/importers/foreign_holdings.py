@@ -4,6 +4,7 @@ import logging
 from datetime import date, timedelta
 from pathlib import Path
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import create_db_and_tables, engine
@@ -79,15 +80,44 @@ def _load_cusip_lookup(session: Session) -> dict[str, str]:
     return lookup
 
 
-def _load_existing_source_ids(session: Session, start_date: date, end_date: date) -> set[str]:
+def _load_existing_source_ids(session: Session) -> set[str]:
+    """Load all existing foreign-holding source IDs to prevent duplicates across any window."""
     rows = session.exec(
         select(Event.source_id).where(
             Event.event_type == "foreign_holding",
-            Event.occurred_at >= start_date,
-            Event.occurred_at <= end_date,
+            Event.source_id.isnot(None),
         )
     ).all()
-    return {r for r in rows if r}
+    return set(rows)
+
+
+def _persist_parsed_holding(
+    session: Session, parsed: dict, existing_ids: set[str], stats: dict
+) -> None:
+    """Insert a parsed holding if it is not already known; catch DB-level duplicates."""
+    sid = parsed.get("source_id")
+    if sid in existing_ids:
+        stats["skipped"] += 1
+        return
+    try:
+        detail_data = parsed.pop("detail")
+        event = Event(**parsed)
+        session.add(event)
+        session.flush()
+        session.add(ForeignHoldingDetail(event_id=event.id, **detail_data))
+        session.commit()
+        existing_ids.add(sid)
+        stats["inserted"] += 1
+        stats["holdings_fetched"] += 1
+    except IntegrityError:
+        session.rollback()
+        existing_ids.add(sid)
+        stats["skipped"] += 1
+        logger.warning("Duplicate foreign holding skipped: %s", sid)
+    except Exception as e:
+        logger.exception("Failed to insert foreign holding event: %s", e)
+        session.rollback()
+        stats["errors"] += 1
 
 
 def _filing_url(cik: str, accession_number: str, primary_document: str | None) -> str | None:
@@ -120,7 +150,7 @@ def sync_foreign_holdings(
 
     with Session(engine) as session:
         cusip_to_ticker = _load_cusip_lookup(session)
-        existing_ids = _load_existing_source_ids(session, start_date, end_date)
+        existing_ids = _load_existing_source_ids(session)
 
         filers = session.exec(
             select(SovereignFiler).where(SovereignFiler.is_active == True)
@@ -184,6 +214,11 @@ def sync_foreign_holdings(
                 session.commit()
                 existing_ids.add(source_id)
                 stats["inserted"] += 1
+            except IntegrityError:
+                session.rollback()
+                existing_ids.add(source_id)
+                stats["skipped"] += 1
+                logger.warning("Duplicate foreign holding skipped: %s", source_id)
             except Exception as e:
                 logger.exception("Failed to insert foreign holding event: %s", e)
                 session.rollback()
@@ -224,7 +259,7 @@ def sync_foreign_holdings_for_filer(cik: str, start_date: date | None = None, en
 
     with Session(engine) as session:
         cusip_to_ticker = _load_cusip_lookup(session)
-        existing_ids = _load_existing_source_ids(session, start_date, end_date)
+        existing_ids = _load_existing_source_ids(session)
 
         filings = fetch_submissions_for_cik(cik, start_date=start_date, end_date=end_date)
         stats["filings"] = len(filings)
@@ -244,38 +279,14 @@ def sync_foreign_holdings_for_filer(cik: str, start_date: date | None = None, en
                     if xml_text:
                         holdings = parse_13f_info_table(xml_text, filing_meta, cusip_to_ticker)
                         for parsed in holdings:
-                            sid = parsed.get("source_id")
-                            if sid in existing_ids:
-                                stats["skipped"] += 1
-                                continue
-                            detail_data = parsed.pop("detail")
-                            event = Event(**parsed)
-                            session.add(event)
-                            session.flush()
-                            session.add(ForeignHoldingDetail(event_id=event.id, **detail_data))
-                            session.commit()
-                            existing_ids.add(sid)
-                            stats["inserted"] += 1
-                            stats["holdings_fetched"] += 1
+                            _persist_parsed_holding(session, parsed, existing_ids, stats)
                 elif form.startswith("13D") or form.startswith("13G") or form.startswith("SC 13"):
                     text = fetch_primary_document(
                         filing["cik"], filing["accession_number"], filing.get("primary_document", "")
                     )
                     parsed = parse_13d_13g(text or "", filing_meta, cusip_to_ticker)
                     if parsed:
-                        sid = parsed.get("source_id")
-                        if sid in existing_ids:
-                            stats["skipped"] += 1
-                            continue
-                        detail_data = parsed.pop("detail")
-                        event = Event(**parsed)
-                        session.add(event)
-                        session.flush()
-                        session.add(ForeignHoldingDetail(event_id=event.id, **detail_data))
-                        session.commit()
-                        existing_ids.add(sid)
-                        stats["inserted"] += 1
-                        stats["holdings_fetched"] += 1
+                        _persist_parsed_holding(session, parsed, existing_ids, stats)
             except Exception as e:
                 logger.exception("Failed to process filing %s: %s", filing.get("accession_number"), e)
                 session.rollback()

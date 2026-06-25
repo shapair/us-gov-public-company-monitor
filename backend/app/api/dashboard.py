@@ -3,7 +3,7 @@ import time
 from datetime import date, datetime, timedelta
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import case, func
 from sqlmodel import Session, select
 
@@ -15,31 +15,67 @@ router = APIRouter()
 
 # Simple in-memory TTL cache for the dashboard summary. Data only changes daily,
 # so a short cache dramatically improves load time on large datasets.
+# Cache is keyed by the optional month filter so filtered views do not collide.
 _cache: dict[str, Any] = {}
-_cache_expiry: float = 0.0
+_cache_expiry: dict[str, float] = {}
 CACHE_TTL_SECONDS = 300  # 5 minutes
 
 
-def _compute_summary(session: Session) -> dict[str, Any]:
+def _parse_month_range(month: str | None) -> tuple[date | None, date | None]:
+    """Parse a 'YYYY-MM' string into inclusive (start_date, end_date)."""
+    if not month:
+        return None, None
+    try:
+        year, mon = month.split("-")
+        start = date(int(year), int(mon), 1)
+        if start.month == 12:
+            end = date(start.year + 1, 1, 1)
+        else:
+            end = date(start.year, start.month + 1, 1)
+        end = end - timedelta(days=1)
+        return start, end
+    except Exception:
+        return None, None
+
+
+def _apply_month_filter(statement, month: str | None):
+    """Add occurred_at range filters to a statement when month is provided."""
+    start, end = _parse_month_range(month)
+    if start:
+        statement = statement.where(Event.occurred_at >= start)
+    if end:
+        statement = statement.where(Event.occurred_at <= end)
+    return statement
+
+
+def _compute_summary(session: Session, month: str | None = None) -> dict[str, Any]:
     """Compute dashboard summary directly from the events table."""
     # Aggregate count and sum in a single scan.
-    total_events, non_null_amount_count, total_amount = session.exec(
-        select(
-            func.count(Event.id),
-            func.count(Event.amount),
-            func.sum(Event.amount),
-        )
-    ).one()
+    agg_statement = select(
+        func.count(Event.id),
+        func.count(Event.amount),
+        func.sum(Event.amount),
+    )
+    agg_statement = _apply_month_filter(agg_statement, month)
+    total_events, non_null_amount_count, total_amount = session.exec(agg_statement).one()
 
-    by_type = session.exec(
+    by_type_statement = (
         select(Event.event_type, func.count(Event.id).label("count"))
         .group_by(Event.event_type)
-    ).all()
+    )
+    by_type_statement = _apply_month_filter(by_type_statement, month)
+    by_type = session.exec(by_type_statement).all()
 
-    recent_cutoff = date.today() - timedelta(days=30)
-    recent_count = session.exec(
-        select(func.count(Event.id)).where(Event.occurred_at >= recent_cutoff)
-    ).one()
+    if month:
+        # When a specific month is selected, "recent 30d" means the selected month window.
+        recent_start, recent_end = _parse_month_range(month)
+    else:
+        recent_start = date.today() - timedelta(days=30)
+        recent_end = None
+    recent_statement = select(func.count(Event.id)).where(Event.occurred_at >= recent_start)
+    if recent_end:
+        recent_statement = recent_statement.where(Event.occurred_at <= recent_end)
+    recent_count = session.exec(recent_statement).one()
 
     return {
         "total_events": total_events,
@@ -47,21 +83,26 @@ def _compute_summary(session: Session) -> dict[str, Any]:
         "total_amount": float(total_amount or 0),
         "by_type": [{"type": t, "count": c} for t, c in by_type],
         "_cached_at": datetime.utcnow().isoformat(),
+        "_filtered_by_month": month is not None,
     }
 
 
 @router.get("/summary")
-def summary(session: Session = Depends(get_session)):
-    """High-level counts and recent activity (cached for 5 minutes)."""
-    global _cache, _cache_expiry
+def summary(
+    month: str | None = Query(None, regex=r"^\d{4}-\d{2}$"),
+    session: Session = Depends(get_session),
+):
+    """High-level counts and recent activity, optionally filtered by month."""
+    cache_key = month or "__all__"
 
     now = time.time()
-    if now < _cache_expiry and _cache:
-        return _cache
+    expiry = _cache_expiry.get(cache_key)
+    if expiry and now < expiry and cache_key in _cache:
+        return _cache[cache_key]
 
-    result = _compute_summary(session)
-    _cache = result
-    _cache_expiry = now + CACHE_TTL_SECONDS
+    result = _compute_summary(session, month=month)
+    _cache[cache_key] = result
+    _cache_expiry[cache_key] = now + CACHE_TTL_SECONDS
     return result
 
 

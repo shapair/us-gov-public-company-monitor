@@ -2,7 +2,7 @@
 from datetime import date, datetime
 from typing import Optional
 
-from sqlalchemy import Column, Index, JSON
+from sqlalchemy import Column, Index, JSON, text
 from sqlmodel import Field, SQLModel
 
 
@@ -29,4 +29,11 @@ class Event(SQLModel, table=True):
     __table_args__ = (
         Index("ix_events_type_date", "event_type", "occurred_at"),
         Index("ix_events_ticker_date", "ticker", "occurred_at"),
+        Index(
+            "uq_events_event_type_source_id",
+            "event_type",
+            "source_id",
+            unique=True,
+            postgresql_where=text("source_id IS NOT NULL"),
+        ),
     )

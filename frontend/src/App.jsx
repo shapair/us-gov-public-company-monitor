@@ -24,6 +24,20 @@ import PortfolioAnalysis from './components/PortfolioAnalysis'
 const API_BASE = import.meta.env.VITE_API_BASE || '/api/v1'
 const PAGE_LIMIT = 50
 
+function generateMonthOptions() {
+  const options = []
+  const now = new Date()
+  for (let i = 0; i < 24; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+    const label = d.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+    options.push({ value, label })
+  }
+  return options
+}
+
+const MONTH_OPTIONS = generateMonthOptions()
+
 const TABS = [
   { id: 'contracts', label: 'Government Contracts' },
   { id: 'trades', label: 'Official Stock Trades' },
@@ -44,7 +58,12 @@ function App() {
   const [contractsTotal, setContractsTotal] = useState(0)
   const [contractsOffset, setContractsOffset] = useState(0)
   const [chartYear, setChartYear] = useState(2026)
+  const [contractMonth, setContractMonth] = useState('')
   const [selectedAgencies, setSelectedAgencies] = useState([])
+
+  const contractMonthLabel = contractMonth
+    ? MONTH_OPTIONS.find((m) => m.value === contractMonth)?.label
+    : null
 
   const [trades, setTrades] = useState([])
   const [tradesTotal, setTradesTotal] = useState(0)
@@ -69,12 +88,15 @@ function App() {
   const [selectedFilingTypes, setSelectedFilingTypes] = useState([])
   const [holdingChartMode, setHoldingChartMode] = useState('ticker')
 
-  const fetchContracts = async (currentOffset, currentAgencies = selectedAgencies) => {
+  const fetchContracts = async (currentOffset, options = {}) => {
+    const currentAgencies = options.agencies ?? selectedAgencies
+    const currentMonth = options.month ?? contractMonth
     const params = new URLSearchParams({
       limit: String(PAGE_LIMIT),
       offset: String(currentOffset),
     })
     currentAgencies.forEach((agency) => params.append('agency', agency))
+    if (currentMonth) params.set('month', currentMonth)
     const res = await fetch(`${API_BASE}/contracts/?${params}`)
     const data = await res.json()
     setContracts(data.items || [])
@@ -187,12 +209,36 @@ function App() {
     setContractsOffset(0)
     setLoading(true)
     try {
-      await fetchContracts(0, nextAgencies)
+      await fetchContracts(0, { agencies: nextAgencies })
     } catch (err) {
       console.error('Failed to filter by agency', err)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleContractMonthChange = async (nextMonth) => {
+    setContractMonth(nextMonth)
+    setContractsOffset(0)
+    setLoading(true)
+    try {
+      await Promise.all([
+        fetchContracts(0, { month: nextMonth }),
+        fetchSummary(nextMonth),
+      ])
+    } catch (err) {
+      console.error('Failed to filter contracts by month', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchSummary = async (month = '') => {
+    const params = new URLSearchParams()
+    if (month) params.set('month', month)
+    const res = await fetch(`${API_BASE}/dashboard/summary?${params}`)
+    const data = await res.json()
+    setSummary(data)
   }
 
   const handleContractPageChange = async (page) => {
@@ -399,7 +445,7 @@ function App() {
           <>
             {activeTab !== 'monitor' && activeTab !== 'pipelines' && (
               <>
-                <SummaryCards summary={summary} />
+                <SummaryCards summary={summary} monthLabel={contractMonthLabel} />
 
                 <section className="mt-5 md:mt-6">
                   <EventTypeBreakdown by_type={summary.by_type} />
@@ -438,6 +484,18 @@ function App() {
                         selected={selectedAgencies}
                         onChange={handleAgencyChange}
                       />
+                      <select
+                        value={contractMonth}
+                        onChange={(e) => handleContractMonthChange(e.target.value)}
+                        className="appearance-none bg-apple-canvas text-apple-ink border border-apple-hairline rounded-apple-pill px-4 py-2 text-apple-caption focus:outline-none focus:ring-2 focus:ring-apple-primary-focus h-[38px]"
+                      >
+                        <option value="">All months</option>
+                        {MONTH_OPTIONS.map((m) => (
+                          <option key={m.value} value={m.value}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
                       <select
                         value={chartYear}
                         onChange={(e) =>
@@ -505,7 +563,8 @@ function App() {
                 <section className="mt-6">
                   <h2 className="apple-section-title mb-3">Top Tickers by Contract Value</h2>
                   <TickerBarChart
-                    year={chartYear === 'all' ? null : chartYear}
+                    year={contractMonth ? null : chartYear === 'all' ? null : chartYear}
+                    month={contractMonth || null}
                     agencies={selectedAgencies}
                     limit={20}
                   />

@@ -29,7 +29,7 @@ function formatCompact(n) {
   }).format(n)
 }
 
-export default function TickerBarChart({ year, agencies = [], limit = 20 }) {
+export default function TickerBarChart({ year, month, agencies = [], limit = 20 }) {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -41,6 +41,7 @@ export default function TickerBarChart({ year, agencies = [], limit = 20 }) {
       try {
         const params = new URLSearchParams({ limit: String(limit) })
         if (year) params.set('year', String(year))
+        if (month) params.set('month', month)
         agencies.forEach((agency) => params.append('agency', agency))
         const res = await fetch(`${API_BASE}/contracts/stats/by-ticker?${params}`)
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -54,13 +55,23 @@ export default function TickerBarChart({ year, agencies = [], limit = 20 }) {
       }
     }
     load()
-  }, [year, agencies, limit])
+  }, [year, month, agencies, limit])
 
   if (loading) return <div className="apple-card p-10 text-apple-ink-muted-48 text-apple-body">Loading chart…</div>
   if (error) return <div className="apple-card p-10 text-apple-primary text-apple-body">Failed to load chart: {error}</div>
   if (data.length === 0) return <div className="apple-card p-10 text-apple-ink-muted-48 text-apple-body">No data available.</div>
 
-  const title = year ? `Top Tickers by Contract Value — ${year}` : 'Top Tickers by Contract Value'
+  let title = 'Top Tickers by Contract Value'
+  if (month) {
+    const [y, m] = month.split('-')
+    const label = new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+    })
+    title = `Top Tickers by Contract Value — ${label}`
+  } else if (year) {
+    title = `Top Tickers by Contract Value — ${year}`
+  }
 
   return (
     <div className="apple-card p-6">

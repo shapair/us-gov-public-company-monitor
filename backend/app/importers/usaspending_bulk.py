@@ -16,6 +16,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any, Optional
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.database import create_db_and_tables, engine
@@ -342,18 +343,45 @@ def persist_batch(session: Session, parsed_records: list[dict[str, Any]]) -> int
     ).all()
     existing_set = set(existing)
 
-    inserted = 0
-    for record in parsed_records:
-        if record["event"]["source_id"] in existing_set:
-            continue
-        event = Event(**record["event"])
-        session.add(event)
-        session.flush()  # Populate event.id for the detail FK.
-        detail = ContractDetail(event_id=event.id, **record["detail"])
-        session.add(detail)
-        inserted += 1
+    new_records = [
+        r for r in parsed_records if r["event"]["source_id"] not in existing_set
+    ]
+    if not new_records:
+        return 0
 
-    session.commit()
+    inserted = 0
+    try:
+        for record in new_records:
+            event = Event(**record["event"])
+            session.add(event)
+            session.flush()  # Populate event.id for the detail FK.
+            detail = ContractDetail(event_id=event.id, **record["detail"])
+            session.add(detail)
+            inserted += 1
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        logger.warning(
+            "USASpending bulk batch conflict; falling back to per-row inserts"
+        )
+        inserted = 0
+        for record in new_records:
+            sid = record["event"]["source_id"]
+            try:
+                event = Event(**record["event"])
+                session.add(event)
+                session.flush()
+                detail = ContractDetail(event_id=event.id, **record["detail"])
+                session.add(detail)
+                session.commit()
+                inserted += 1
+            except IntegrityError:
+                session.rollback()
+                logger.warning("Duplicate USASpending contract skipped: %s", sid)
+            except Exception:
+                session.rollback()
+                logger.exception("Failed to insert USASpending bulk event")
+
     return inserted
 
 

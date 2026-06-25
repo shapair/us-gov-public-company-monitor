@@ -1,5 +1,5 @@
 """API routes for government contract / grant events."""
-from datetime import date
+from datetime import date, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -14,6 +14,22 @@ def _normalize_agencies(agency: list[str] | None) -> list[str] | None:
     cleaned = [a.strip() for a in agency if a and a.strip()]
     return cleaned if cleaned else None
 
+
+def _month_range(month: str | None) -> tuple[date | None, date | None]:
+    """Parse 'YYYY-MM' into inclusive start/end dates."""
+    if not month:
+        return None, None
+    try:
+        year, mon = month.split("-")
+        start = date(int(year), int(mon), 1)
+        end = (
+            date(start.year + start.month // 12, (start.month % 12) + 1, 1)
+            - timedelta(days=1)
+        )
+        return start, end
+    except Exception:
+        return None, None
+
 from app.database import get_session
 from app.models import ContractDetail, Event
 
@@ -26,11 +42,14 @@ def list_contracts(
     agency: Optional[list[str]] = Query(None),
     start_date: Optional[str] = Query(None),
     end_date: Optional[str] = Query(None),
+    month: Optional[str] = Query(None, regex=r"^\d{4}-\d{2}$"),
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     session: Session = Depends(get_session),
 ):
     agencies = _normalize_agencies(agency)
+    month_start, month_end = _month_range(month)
+
     base_statement = (
         select(Event, ContractDetail)
         .join(ContractDetail)
@@ -45,6 +64,10 @@ def list_contracts(
         base_statement = base_statement.where(Event.occurred_at >= start_date)
     if end_date:
         base_statement = base_statement.where(Event.occurred_at <= end_date)
+    if month_start:
+        base_statement = base_statement.where(Event.occurred_at >= month_start)
+    if month_end:
+        base_statement = base_statement.where(Event.occurred_at <= month_end)
 
     # Total count for pagination. Build a separate, simpler count query to avoid
     # the cartesian-product subquery that SQLAlchemy generates from the joined
@@ -56,6 +79,10 @@ def list_contracts(
         count_statement = count_statement.where(Event.occurred_at >= start_date)
     if end_date:
         count_statement = count_statement.where(Event.occurred_at <= end_date)
+    if month_start:
+        count_statement = count_statement.where(Event.occurred_at >= month_start)
+    if month_end:
+        count_statement = count_statement.where(Event.occurred_at <= month_end)
     if agencies:
         count_statement = count_statement.join(ContractDetail).where(
             ContractDetail.agency.in_(agencies)
@@ -121,14 +148,22 @@ def list_agencies(
 
 @router.get("/stats/top-recipients")
 def top_recipients(
+    month: Optional[str] = Query(None, regex=r"^\d{4}-\d{2}$"),
     limit: int = Query(10, ge=1, le=50),
     session: Session = Depends(get_session),
 ):
+    month_start, month_end = _month_range(month)
     statement = (
         select(Event.ticker, Event.company_name, func.sum(Event.amount).label("total"))
         .where(Event.event_type == "contract")
         .where(Event.ticker.isnot(None))
-        .group_by(Event.ticker, Event.company_name)
+    )
+    if month_start:
+        statement = statement.where(Event.occurred_at >= month_start)
+    if month_end:
+        statement = statement.where(Event.occurred_at <= month_end)
+    statement = (
+        statement.group_by(Event.ticker, Event.company_name)
         .order_by(func.sum(Event.amount).desc())
         .limit(limit)
     )
@@ -142,12 +177,14 @@ def top_recipients(
 @router.get("/stats/by-ticker")
 def stats_by_ticker(
     year: Optional[int] = Query(None, ge=2000, le=2100),
+    month: Optional[str] = Query(None, regex=r"^\d{4}-\d{2}$"),
     agency: Optional[list[str]] = Query(None),
     limit: int = Query(20, ge=1, le=100),
     session: Session = Depends(get_session),
 ):
-    """Aggregate contract amounts by ticker, optionally filtered by calendar year and/or agencies."""
+    """Aggregate contract amounts by ticker, optionally filtered by year, month, and/or agencies."""
     agencies = _normalize_agencies(agency)
+    month_start, month_end = _month_range(month)
 
     statement = (
         select(
@@ -164,6 +201,10 @@ def stats_by_ticker(
             Event.occurred_at >= date(year, 1, 1),
             Event.occurred_at <= date(year, 12, 31),
         )
+    if month_start:
+        statement = statement.where(Event.occurred_at >= month_start)
+    if month_end:
+        statement = statement.where(Event.occurred_at <= month_end)
     if agencies:
         statement = statement.join(ContractDetail).where(
             ContractDetail.agency.in_(agencies)
